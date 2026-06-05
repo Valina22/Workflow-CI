@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/VIVOBOOK/Workflow-CI/MLProject/mlruns/0/a7a55387fc0f4bce8511819ffe5fcbd7/artifacts
+end_time: 1780644010255
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: a7a55387fc0f4bce8511819ffe5fcbd7
+run_name: abrasive-duck-639
+run_uuid: a7a55387fc0f4bce8511819ffe5fcbd7
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1780644004333
+status: 4
+tags: []
+user_id: VIVOBOOK

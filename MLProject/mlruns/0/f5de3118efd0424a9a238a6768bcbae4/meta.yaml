@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/VIVOBOOK/Workflow-CI/MLProject/mlruns/0/f5de3118efd0424a9a238a6768bcbae4/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: f5de3118efd0424a9a238a6768bcbae4
+run_name: merciful-owl-778
+run_uuid: f5de3118efd0424a9a238a6768bcbae4
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1780643765797
+status: 1
+tags: []
+user_id: VIVOBOOK
