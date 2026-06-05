@@ -67,7 +67,7 @@ jobs:
       - name: Run MLflow Project
         run: |
           cd MLProject
-          mlflow run .
+          mlflow run . --env-manager local
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
