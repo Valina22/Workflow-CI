@@ -1,0 +1,5 @@
+mlruns/
+artifacts/
+logs/
+__pycache__/
+*.pyc
