@@ -25,4 +25,4 @@ ENV RUNNING_IN_DOCKER=1
 
 WORKDIR /app/MLProject
 
-ENTRYPOINT ["python", "modelling.py"]
+ENTRYPOINT ["python", "-u", "modelling.py"]

@@ -1,12 +1,4 @@
-"""
-=============================================================
-modelling.py  —  Baseline Model Training (FIXED VERSION)
-Nama Siswa : Valina Puspita Sari
-Kriteria   : 2 — Membangun Model Machine Learning
-MLflow     : autolog() | Tracking via DagsHub
-Dataset    : Heart Failure Prediction
-=============================================================
-"""
+print("🚀 SCRIPT STARTED")
 
 import os
 import sys
@@ -15,14 +7,12 @@ import warnings
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import mlflow
 import mlflow.sklearn
-import dagshub
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
@@ -39,9 +29,12 @@ from sklearn.model_selection import cross_val_score
 
 warnings.filterwarnings("ignore")
 
+# ─────────────────────────────────────────────
+# LOGGING
+# ─────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(message)s",
+    format="%(asctime)s | %(levelname)s | %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
@@ -50,43 +43,57 @@ logger = logging.getLogger(__name__)
 # CONFIG
 # ─────────────────────────────────────────────
 DAGSHUB_USERNAME = "Valina22"
-DAGSHUB_REPO     = "Workflow-CI"
-EXPERIMENT_NAME  = "Heart_Disease_Baseline"
+DAGSHUB_REPO = "Workflow-CI"
+EXPERIMENT_NAME = "Heart_Disease_Baseline"
 
-TRAIN_PATH = "dataset_preprocessing/train.csv"
-VAL_PATH   = "dataset_preprocessing/val.csv"
-TEST_PATH  = "dataset_preprocessing/test.csv"
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "dataset_preprocessing"
+
+TRAIN_PATH = DATA_DIR / "train.csv"
+VAL_PATH   = DATA_DIR / "val.csv"
+TEST_PATH  = DATA_DIR / "test.csv"
+
 TARGET_COL = "HeartDisease"
 
-RANDOM_STATE = 42
+# ─────────────────────────────────────────────
+# SAFE DAGS HUB INIT
+# ─────────────────────────────────────────────
+def init_dagshub():
+    if os.getenv("RUNNING_IN_DOCKER") == "1":
+        logger.info("Running in Docker → skip DagsHub OAuth")
+        return
 
+    try:
+        import dagshub
+        dagshub.init(DAGSHUB_REPO, DAGSHUB_USERNAME)
+        logger.info("DagsHub initialized")
+    except Exception as e:
+        logger.warning(f"DagsHub init skipped: {e}")
+
+init_dagshub()
 
 # ─────────────────────────────────────────────
-# INIT DAGSUB + MLFLOW
+# MLFLOW CONFIG (IMPORTANT FIX)
 # ─────────────────────────────────────────────
-import os
-
-if os.getenv("RUNNING_IN_DOCKER", "0") != "1":
-    dagshub.init(DAGSHUB_REPO, DAGSHUB_USERNAME)
-    
-mlflow.set_tracking_uri(f"https://dagshub.com/{DAGSHUB_USERNAME}/{DAGSHUB_REPO}.mlflow")
-mlflow.set_experiment(EXPERIMENT_NAME)
-
-# IMPORTANT: autolog hanya sekali (FIX)
-mlflow.sklearn.autolog(
-    log_input_examples=True,
-    log_model_signatures=True,
-    log_models=True,
-    log_datasets=False,
-    silent=True,
+mlflow.set_tracking_uri(
+    f"https://dagshub.com/{DAGSHUB_USERNAME}/{DAGSHUB_REPO}.mlflow"
 )
 
+mlflow.set_experiment(EXPERIMENT_NAME)
+
+# ❗ IMPORTANT: always wrap run context
+mlflow.sklearn.autolog(
+    log_input_examples=False,
+    log_model_signatures=False,
+    log_models=False,
+    silent=True
+)
 
 # ─────────────────────────────────────────────
-# DATA LOADER
+# DATA
 # ─────────────────────────────────────────────
 def load_splits():
-    logger.info("Loading dataset splits...")
+    logger.info("Loading dataset...")
 
     train = pd.read_csv(TRAIN_PATH)
     val   = pd.read_csv(VAL_PATH)
@@ -101,29 +108,29 @@ def load_splits():
     X_test = test.drop(columns=[TARGET_COL])
     y_test = test[TARGET_COL]
 
-    logger.info(f"Train {X_train.shape} | Val {X_val.shape} | Test {X_test.shape}")
+    logger.info(f"Train: {X_train.shape} | Val: {X_val.shape} | Test: {X_test.shape}")
+
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 
 # ─────────────────────────────────────────────
 # EVALUATION
 # ─────────────────────────────────────────────
-def evaluate(model, X, y, split_name: str) -> dict:
-    y_pred = model.predict(X)
+def evaluate(model, X, y, prefix):
+    pred = model.predict(X)
 
     metrics = {
-        f"{split_name}_accuracy": accuracy_score(y, y_pred),
-        f"{split_name}_f1": f1_score(y, y_pred),
-        f"{split_name}_precision": precision_score(y, y_pred),
-        f"{split_name}_recall": recall_score(y, y_pred),
+        f"{prefix}_accuracy": accuracy_score(y, pred),
+        f"{prefix}_f1": f1_score(y, pred),
+        f"{prefix}_precision": precision_score(y, pred),
+        f"{prefix}_recall": recall_score(y, pred),
     }
 
-    # ROC AUC SAFE HANDLING
     if hasattr(model, "predict_proba"):
         try:
-            y_proba = model.predict_proba(X)[:, 1]
-            metrics[f"{split_name}_roc_auc"] = roc_auc_score(y, y_proba)
-        except Exception:
+            prob = model.predict_proba(X)[:, 1]
+            metrics[f"{prefix}_roc_auc"] = roc_auc_score(y, prob)
+        except:
             pass
 
     for k, v in metrics.items():
@@ -135,25 +142,21 @@ def evaluate(model, X, y, split_name: str) -> dict:
 # ─────────────────────────────────────────────
 # CONFUSION MATRIX
 # ─────────────────────────────────────────────
-def save_confusion_matrix(model, X, y, model_name: str, output_dir="artifacts"):
-    Path(output_dir).mkdir(exist_ok=True)
+def save_cm(model, X, y, name):
+    Path("artifacts").mkdir(exist_ok=True)
 
-    y_pred = model.predict(X)
-    cm = confusion_matrix(y, y_pred)
+    pred = model.predict(X)
+    cm = confusion_matrix(y, pred)
 
-    fig, ax = plt.subplots(figsize=(5, 4))
-    ax.imshow(cm, cmap="Blues")
-
-    ax.set_title(f"Confusion Matrix - {model_name}")
-    ax.set_xlabel("Predicted")
-    ax.set_ylabel("Actual")
+    plt.figure()
+    plt.imshow(cm, cmap="Blues")
+    plt.title(f"Confusion Matrix - {name}")
 
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
-            ax.text(j, i, cm[i, j], ha="center", va="center")
+            plt.text(j, i, cm[i, j], ha="center", va="center")
 
-    path = f"{output_dir}/{model_name}_cm.png"
-    plt.tight_layout()
+    path = f"artifacts/{name}_cm.png"
     plt.savefig(path)
     plt.close()
 
@@ -163,113 +166,72 @@ def save_confusion_matrix(model, X, y, model_name: str, output_dir="artifacts"):
 # ─────────────────────────────────────────────
 # MODELS
 # ─────────────────────────────────────────────
-BASELINE_MODELS = {
-    "LogisticRegression": LogisticRegression(max_iter=1000, random_state=RANDOM_STATE),
-    "DecisionTree": DecisionTreeClassifier(random_state=RANDOM_STATE),
-    "RandomForest": RandomForestClassifier(n_estimators=100, random_state=RANDOM_STATE),
-    "GradientBoosting": GradientBoostingClassifier(random_state=RANDOM_STATE),
-    "SVM": SVC(probability=True, random_state=RANDOM_STATE),
-    "KNN": KNeighborsClassifier(),
+MODELS = {
+    "LogReg": LogisticRegression(max_iter=1000),
+    "Tree": DecisionTreeClassifier(),
+    "RF": RandomForestClassifier(n_estimators=100),
+    "GB": GradientBoostingClassifier(),
+    "SVM": SVC(probability=True),
+    "KNN": KNeighborsClassifier()
 }
 
 
 # ─────────────────────────────────────────────
-# MAIN
+# MAIN (FIX: MLflow RUN CONTEXT)
 # ─────────────────────────────────────────────
 def main():
-    logger.info("=" * 60)
-    logger.info("BASELINE MODEL TRAINING STARTED")
-    logger.info("=" * 60)
+    logger.info("=" * 50)
+    logger.info("START TRAINING")
+    logger.info("=" * 50)
 
     X_train, X_val, X_test, y_train, y_val, y_test = load_splits()
 
     results = []
-    Path("artifacts").mkdir(exist_ok=True)
 
-    for name, model in BASELINE_MODELS.items():
-        logger.info(f"\nTraining {name}")
+    # 🔥 IMPORTANT FIX: satu MLflow run untuk semua model
+    with mlflow.start_run(run_name="baseline_all_models"):
 
-        # ─────────────────────────────
-        # TRAIN
-        # ─────────────────────────────
-        model.fit(X_train, y_train)
+        for name, model in MODELS.items():
+            logger.info(f"\nTraining {name}")
 
-        # ─────────────────────────────
-        # EVALUATION
-        # ─────────────────────────────
-        logger.info("Validation")
-        val_metrics = evaluate(model, X_val, y_val, "val")
+            model.fit(X_train, y_train)
 
-        logger.info("Test")
-        test_metrics = evaluate(model, X_test, y_test, "test")
+            val_metrics = evaluate(model, X_val, y_val, "val")
+            test_metrics = evaluate(model, X_test, y_test, "test")
 
-        cv_scores = cross_val_score(
-            model, X_train, y_train, cv=5, scoring="f1"
-        )
+            cv = cross_val_score(model, X_train, y_train, cv=3, scoring="f1")
 
-        cv_mean = cv_scores.mean()
-        cv_std = cv_scores.std()
+            mlflow.log_metrics({
+                **val_metrics,
+                **test_metrics,
+                f"{name}_cv_f1_mean": cv.mean()
+            })
 
-        # ─────────────────────────────
-        # LOG METRICS (MLflow Projects SAFE MODE)
-        # ─────────────────────────────
-        mlflow.log_metrics({
-            **val_metrics,
-            **test_metrics,
-            "cv_f1_mean": cv_mean,
-            "cv_f1_std": cv_std
-        })
+            report = classification_report(y_val, model.predict(X_val))
 
-        # ─────────────────────────────
-        # CLASSIFICATION REPORT
-        # ─────────────────────────────
-        report = classification_report(y_val, model.predict(X_val))
-        report_path = f"artifacts/{name}_report.txt"
+            Path("artifacts").mkdir(exist_ok=True)
+            report_path = f"artifacts/{name}_report.txt"
 
-        with open(report_path, "w") as f:
-            f.write(f"Model: {name}\n\n")
-            f.write(report)
+            with open(report_path, "w") as f:
+                f.write(report)
 
-        mlflow.log_artifact(report_path)
+            mlflow.log_artifact(report_path)
+            mlflow.log_artifact(save_cm(model, X_val, y_val, name))
 
-        # ─────────────────────────────
-        # CONFUSION MATRIX
-        # ─────────────────────────────
-        cm_path = save_confusion_matrix(model, X_val, y_val, name)
-        mlflow.log_artifact(cm_path)
+            results.append({
+                "model": name,
+                "val_f1": val_metrics["val_f1"],
+                "test_f1": test_metrics["test_f1"]
+            })
 
-        # ─────────────────────────────
-        # TAGS
-        # ─────────────────────────────
-        mlflow.set_tags({
-            "model": name,
-            "student": "Valina Puspita Sari",
-            "stage": "baseline"
-        })
+    df = pd.DataFrame(results).sort_values("val_f1", ascending=False)
 
-        # ─────────────────────────────
-        # SAVE SUMMARY
-        # ─────────────────────────────
-        results.append({
-            "model": name,
-            "val_f1": val_metrics["val_f1"],
-            "test_f1": test_metrics["test_f1"],
-            "val_auc": val_metrics.get("val_roc_auc", 0)
-        })
+    logger.info("\nLEADERBOARD")
+    logger.info(df.to_string(index=False))
 
-    # ─────────────────────────────
-    # LEADERBOARD
-    # ─────────────────────────────
-    board = pd.DataFrame(results).sort_values("val_f1", ascending=False)
-
-    logger.info("\n" + "=" * 60)
-    logger.info("LEADERBOARD")
-    logger.info("=" * 60)
-    logger.info("\n" + board.to_string(index=False))
-
-    best = board.iloc[0]
-    logger.info(
-        f"\nBest Model: {best['model']} | F1: {best['val_f1']:.4f}"
-    )
-
+    logger.info(f"BEST MODEL: {df.iloc[0]['model']}")
     logger.info("DONE")
+
+
+if __name__ == "__main__":
+    main()
