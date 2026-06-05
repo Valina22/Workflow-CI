@@ -188,7 +188,10 @@ def main():
     if mlflow.active_run():
         mlflow.end_run()
 
-    with mlflow.start_run(run_name="baseline_all_models"):
+    with mlflow.start_run(
+    run_name="baseline_all_models",
+    nested=True
+):
 
         for name, model in MODELS.items():
             logger.info(f"\nTraining {name}")
