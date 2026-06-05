@@ -63,8 +63,9 @@ def init_dagshub():
 
     try:
         import dagshub
-        dagshub.init(DAGSHUB_REPO, DAGSHUB_USERNAME)
-        logger.info("DagsHub initialized")
+        def init_dagshub():
+            logger.info("Skip DagsHub configuration")
+            logger.info("DagsHub initialized")
     except Exception as e:
         logger.warning(f"DagsHub init skipped: {e}")
 
@@ -246,7 +247,17 @@ def main():
     logger.info("\nLEADERBOARD")
     logger.info(df.to_string(index=False))
 
-    logger.info(f"BEST MODEL: {df.iloc[0]['model']}")
+    best_model_name = df.iloc[0]["model"]
+    best_model = MODELS[best_model_name]
+
+    Path("models").mkdir(exist_ok=True)
+
+    mlflow.sklearn.save_model(
+        sk_model=best_model,
+        path="models/best_model"
+    )
+
+    logger.info(f"BEST MODEL: {best_model_name}")
     logger.info("DONE")
 
 
