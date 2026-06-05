@@ -42,16 +42,14 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────
-DAGSHUB_USERNAME = "Valina22"
-DAGSHUB_REPO = "Workflow-CI"
 EXPERIMENT_NAME = "Heart_Disease_Baseline"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "dataset_preprocessing"
 
 TRAIN_PATH = DATA_DIR / "train.csv"
-VAL_PATH   = DATA_DIR / "val.csv"
-TEST_PATH  = DATA_DIR / "test.csv"
+VAL_PATH = DATA_DIR / "val.csv"
+TEST_PATH = DATA_DIR / "test.csv"
 
 TARGET_COL = "HeartDisease"
 
@@ -73,15 +71,14 @@ def init_dagshub():
 init_dagshub()
 
 # ─────────────────────────────────────────────
-# MLFLOW CONFIG (IMPORTANT FIX)
+# MLFLOW CONFIG
 # ─────────────────────────────────────────────
-mlflow.set_tracking_uri(
-    f"https://dagshub.com/{DAGSHUB_USERNAME}/{DAGSHUB_REPO}.mlflow"
-)
+logger.info("Using local MLflow tracking")
+
+mlflow.set_tracking_uri("file:./mlruns")
 
 mlflow.set_experiment(EXPERIMENT_NAME)
 
-# ❗ IMPORTANT: always wrap run context
 mlflow.sklearn.autolog(
     log_input_examples=False,
     log_model_signatures=False,
@@ -188,7 +185,9 @@ def main():
 
     results = []
 
-    # 🔥 IMPORTANT FIX: satu MLflow run untuk semua model
+    if mlflow.active_run():
+        mlflow.end_run()
+
     with mlflow.start_run(run_name="baseline_all_models"):
 
         for name, model in MODELS.items():
@@ -199,7 +198,13 @@ def main():
             val_metrics = evaluate(model, X_val, y_val, "val")
             test_metrics = evaluate(model, X_test, y_test, "test")
 
-            cv = cross_val_score(model, X_train, y_train, cv=3, scoring="f1")
+            cv = cross_val_score(
+                model,
+                X_train,
+                y_train,
+                cv=3,
+                scoring="f1"
+            )
 
             mlflow.log_metrics({
                 **val_metrics,
@@ -207,16 +212,22 @@ def main():
                 f"{name}_cv_f1_mean": cv.mean()
             })
 
-            report = classification_report(y_val, model.predict(X_val))
+            report = classification_report(
+                y_val,
+                model.predict(X_val)
+            )
 
             Path("artifacts").mkdir(exist_ok=True)
+
             report_path = f"artifacts/{name}_report.txt"
 
             with open(report_path, "w") as f:
                 f.write(report)
 
             mlflow.log_artifact(report_path)
-            mlflow.log_artifact(save_cm(model, X_val, y_val, name))
+            mlflow.log_artifact(
+                save_cm(model, X_val, y_val, name)
+            )
 
             results.append({
                 "model": name,
@@ -224,7 +235,10 @@ def main():
                 "test_f1": test_metrics["test_f1"]
             })
 
-    df = pd.DataFrame(results).sort_values("val_f1", ascending=False)
+    df = pd.DataFrame(results).sort_values(
+        "val_f1",
+        ascending=False
+    )
 
     logger.info("\nLEADERBOARD")
     logger.info(df.to_string(index=False))
