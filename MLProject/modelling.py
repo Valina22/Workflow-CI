@@ -187,7 +187,6 @@ def main():
 
     results = []
     trained_models = {}
-):
 
         for name, model in MODELS.items():
             logger.info(f"\nTraining {name}")
