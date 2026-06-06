@@ -113,11 +113,13 @@ jobs:
       run: |
         cat MLProject/models/best_model/MLmodel
         
-    - name: Build Docker with MLflow
+    - name: Check MLflow Version
       run: |
-        mlflow models build-docker \
-          -m MLProject/models/best_model \
-          -name heart-disease-mlflow
+        mlflow --version
+
+    - name: Show Build Docker Help
+      run: |
+        mlflow models build-docker --help
 
     - name: Tag Image
       run: |
