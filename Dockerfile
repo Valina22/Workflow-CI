@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 LABEL maintainer="Valina Puspita Sari"
 LABEL description="Heart Disease Prediction - ML Pipeline"
