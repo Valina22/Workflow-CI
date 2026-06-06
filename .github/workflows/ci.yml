@@ -67,7 +67,7 @@ jobs:
       - name: Train MLflow Project
         run: |
          cd MLProject
-         mlflow run .
+         mlflow run . --env-manager local
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -101,7 +101,7 @@ jobs:
     - name: Train MLflow Project
       run: |
         cd MLProject
-        mlflow run .
+        mlflow run . --env-manager local
 
     - name: Login Docker Hub
       uses: docker/login-action@v3
