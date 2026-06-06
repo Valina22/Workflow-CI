@@ -186,6 +186,7 @@ def main():
     X_train, X_val, X_test, y_train, y_val, y_test = load_splits()
 
     results = []
+    trained_models = {}
 
     if mlflow.active_run():
         mlflow.end_run()
@@ -198,6 +199,7 @@ def main():
             logger.info(f"\nTraining {name}")
 
             model.fit(X_train, y_train)
+            trained_models[name] = model
 
             val_metrics = evaluate(model, X_val, y_val, "val")
             test_metrics = evaluate(model, X_test, y_test, "test")
