@@ -117,8 +117,7 @@ jobs:
       run: |
         mlflow models build-docker \
           -m MLProject/models/best_model \
-          -name heart-disease-mlflow \
-          -env-manager local
+          -name heart-disease-mlflow
 
     - name: Tag Image
       run: |
