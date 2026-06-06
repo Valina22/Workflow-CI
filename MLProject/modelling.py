@@ -188,51 +188,51 @@ def main():
     results = []
     trained_models = {}
 
-        for name, model in MODELS.items():
-            logger.info(f"\nTraining {name}")
+    for name, model in MODELS.items():
+        logger.info(f"\nTraining {name}")
 
-            model.fit(X_train, y_train)
-            trained_models[name] = model
+        model.fit(X_train, y_train)
+        trained_models[name] = model
 
-            val_metrics = evaluate(model, X_val, y_val, "val")
-            test_metrics = evaluate(model, X_test, y_test, "test")
+        val_metrics = evaluate(model, X_val, y_val, "val")
+        test_metrics = evaluate(model, X_test, y_test, "test")
 
-            cv = cross_val_score(
-                model,
-                X_train,
-                y_train,
-                cv=3,
-                scoring="f1"
-            )
+        cv = cross_val_score(
+            model,
+            X_train,
+            y_train,
+            cv=3,
+            scoring="f1"
+        )
 
-            mlflow.log_metrics({
-                **val_metrics,
-                **test_metrics,
-                f"{name}_cv_f1_mean": cv.mean()
-            })
+        mlflow.log_metrics({
+            **val_metrics,
+            **test_metrics,
+            f"{name}_cv_f1_mean": cv.mean()
+        })
 
-            report = classification_report(
-                y_val,
-                model.predict(X_val)
-            )
+        report = classification_report(
+            y_val,
+            model.predict(X_val)
+        )
 
-            Path("artifacts").mkdir(exist_ok=True)
+        Path("artifacts").mkdir(exist_ok=True)
 
-            report_path = f"artifacts/{name}_report.txt"
+        report_path = f"artifacts/{name}_report.txt"
 
-            with open(report_path, "w") as f:
-                f.write(report)
+        with open(report_path, "w") as f:
+            f.write(report)
 
-            mlflow.log_artifact(report_path)
-            mlflow.log_artifact(
-                save_cm(model, X_val, y_val, name)
-            )
+        mlflow.log_artifact(report_path)
+        mlflow.log_artifact(
+            save_cm(model, X_val, y_val, name)
+        )
 
-            results.append({
-                "model": name,
-                "val_f1": val_metrics["val_f1"],
-                "test_f1": test_metrics["test_f1"]
-            })
+        results.append({
+            "model": name,
+            "val_f1": val_metrics["val_f1"],
+            "test_f1": test_metrics["test_f1"]
+        })
 
     df = pd.DataFrame(results).sort_values(
         "val_f1",
@@ -256,7 +256,6 @@ def main():
         sk_model=best_model,
         path=MODEL_DIR
     )
-   
 
     logger.info(f"BEST MODEL: {best_model_name}")
     logger.info("DONE")
