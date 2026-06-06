@@ -109,6 +109,10 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    - name: Inspect MLflow Model
+      run: |
+        cat MLProject/models/best_model/MLmodel
+        
     - name: Build Docker with MLflow
       run: |
         mlflow models build-docker \
