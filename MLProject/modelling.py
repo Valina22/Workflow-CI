@@ -82,9 +82,9 @@ mlflow.set_tracking_uri("file:./mlruns")
 mlflow.set_experiment(EXPERIMENT_NAME)
 
 mlflow.sklearn.autolog(
-    log_input_examples=False,
-    log_model_signatures=False,
-    log_models=False,
+    log_input_examples=True,
+    log_model_signatures=True,
+    log_models=True,
     silent=True
 )
 
@@ -191,7 +191,6 @@ def main():
         mlflow.end_run()
 
     with mlflow.start_run(
-    run_name="baseline_all_models",
     nested=True
 ):
 
@@ -249,19 +248,20 @@ def main():
     logger.info(df.to_string(index=False))
 
     best_model_name = df.iloc[0]["model"]
-    best_model = MODELS[best_model_name]
+    best_model = trained_models[best_model_name]
 
     Path("models").mkdir(exist_ok=True)
 
     MODEL_DIR = "models/best_model"
 
     if os.path.exists(MODEL_DIR):
-    shutil.rmtree(MODEL_DIR)
+        shutil.rmtree(MODEL_DIR)
 
     mlflow.sklearn.save_model(
         sk_model=best_model,
-        path="models/best_model"
+        path=MODEL_DIR
     )
+   
 
     logger.info(f"BEST MODEL: {best_model_name}")
     logger.info("DONE")
