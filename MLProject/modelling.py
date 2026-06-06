@@ -1,5 +1,6 @@
 print("🚀 SCRIPT STARTED")
 
+import shutil
 import os
 import sys
 import logging
@@ -251,6 +252,11 @@ def main():
     best_model = MODELS[best_model_name]
 
     Path("models").mkdir(exist_ok=True)
+
+    MODEL_DIR = "models/best_model"
+
+    if os.path.exists(MODEL_DIR):
+    shutil.rmtree(MODEL_DIR)
 
     mlflow.sklearn.save_model(
         sk_model=best_model,
