@@ -187,12 +187,6 @@ def main():
 
     results = []
     trained_models = {}
-
-    if mlflow.active_run():
-        mlflow.end_run()
-
-    with mlflow.start_run(
-    nested=True
 ):
 
         for name, model in MODELS.items():
