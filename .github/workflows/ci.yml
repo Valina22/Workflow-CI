@@ -109,6 +109,12 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    - name: Build Docker Image
+      run: |
+        docker build \
+        -t heart-disease-mlflow \
+        .
+
     - name: Inspect MLflow Model
       run: |
         cat MLProject/models/best_model/MLmodel
